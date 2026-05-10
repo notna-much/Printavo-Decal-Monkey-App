@@ -6,3 +6,6 @@ Additional references:
 * [Getting started with Vite](https://vitejs.dev/guide/)
 * [Tailwind documentation](https://tailwindcss.com/docs/installation)
 
+## Licensing
+
+This client is part of the Decal Monkey Field App repository and is released under the GNU General Public License v3.0. See the root `README.md` and `LICENSE` files for GPLv3 terms, commercial licensing, and full IP acquisition options.

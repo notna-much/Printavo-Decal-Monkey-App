@@ -41,3 +41,10 @@ Date: May 2026
 - Added this root changelog file so release notes can be appended across chats without overwriting earlier entries.
 - Carried forward the existing in-app release history into one ordered markdown timeline from `1.0.0` through `1.0.3`.
 - Confirmed the current frontend app version is set to `1.0.3` in the client configuration for the next build.
+
+## 1.0.4 - Repository Licensing
+Date: May 2026
+
+- Added GNU GPLv3 licensing documentation.
+- Added package license metadata for the client and server packages.
+- Added commercial licensing and full IP acquisition language for companies that want to use, incorporate, white-label, bundle, or acquire the project outside the GPLv3.
