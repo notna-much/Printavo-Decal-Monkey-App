@@ -1,23 +1,16 @@
 # Changelog
 
-This file tracks the project revision path in version order so multiple chats can append their own notes without overwriting prior entries.
-
-## 1.0.0 - Initial Release
+## 1.0.3 - Latest Update
 Date: April 2026
 
-- Released the Decal Monkey Field App with sales, measurements, installer, and Printavo sync workflows.
-- Added draft saving, submission history, measurement completion flow, and install closeout tools.
+- Fixed device naming so leaving the field blank now correctly uses the detected device and browser name.
+- Added self-service password changes in Settings, with updates saved to the shared server login system for use on other devices.
+- Added a first-time quick guide at sign-in plus page-by-page tips, with new Guide & Suggestions controls in Settings.
+- Unified home screen and shortcut branding so supported iPhone, iPad, Android, and desktop shortcuts use the Decal Monkey field app icon on the purple app background.
+- Cleaned up installer report notes sent to Printavo so successful installs no longer include default issue priority text when no issue was selected.
+- Removed the Source Job line from installer report notes in Printavo so completion updates only post the details that actually happened.
 
-## 1.0.1 - Previous Build
-Date: April 2026
-
-- Added Inquiry intake that sends leads straight into Printavo inquiries.
-- Refreshed the app with a cleaner purple and slate UI palette for a more polished field workflow.
-- Improved login flow with a cleaner branded screen, version display, and password visibility toggle.
-- Added installer artwork warnings and restored quick actions for calling customers and opening maps.
-- Improved settings layout and added in-app changelog viewing.
-
-## 1.0.2 - Latest Update
+## 1.0.2 - Previous Build
 Date: April 2026
 
 - Enhanced device naming with automatic detection and optional custom naming while preventing blank values.
@@ -35,16 +28,17 @@ Date: April 2026
 - Users can now log themselves out across all devices without affecting others.
 - General stability and usability improvements for real-world field workflows.
 
-## 1.0.3 - Release Prep And Documentation
-Date: May 2026
+## 1.0.1 - Earlier Build
+Date: April 2026
 
-- Added this root changelog file so release notes can be appended across chats without overwriting earlier entries.
-- Carried forward the existing in-app release history into one ordered markdown timeline from `1.0.0` through `1.0.3`.
-- Confirmed the current frontend app version is set to `1.0.3` in the client configuration for the next build.
+- Added Inquiry intake that sends leads straight into Printavo inquiries.
+- Refreshed the app with a cleaner purple and slate UI palette for a more polished field workflow.
+- Improved login flow with a cleaner branded screen, version display, and password visibility toggle.
+- Added installer artwork warnings and restored quick actions for calling customers and opening maps.
+- Improved settings layout and added in-app changelog viewing.
 
-## 1.0.4 - Repository Licensing
-Date: May 2026
+## 1.0.0 - Initial Release
+Date: April 2026
 
-- Added GNU GPLv3 licensing documentation.
-- Added package license metadata for the client and server packages.
-- Added commercial licensing and full IP acquisition language for companies that want to use, incorporate, white-label, bundle, or acquire the project outside the GPLv3.
+- Released the Decal Monkey Field App with sales, measurements, installer, and Printavo sync workflows.
+- Added draft saving, submission history, measurement completion flow, and install closeout tools.

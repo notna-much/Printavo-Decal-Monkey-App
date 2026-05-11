@@ -1,11 +1,30 @@
-# React + Tailwind
+# Decal Monkey Field App Client
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules. One top of the standard Vite setup, [tailwindcss](https://tailwindcss.com/) is installed and ready to be used in React components.
+This frontend powers the Decal Monkey Field App user experience. It is the field-facing React application used by sales reps, measurement staff, and installers.
 
-Additional references:
-* [Getting started with Vite](https://vitejs.dev/guide/)
-* [Tailwind documentation](https://tailwindcss.com/docs/installation)
+## Frontend Responsibilities
+
+- Sign-in and shared app session flow
+- Inquiry intake
+- New order and quote intake flow
+- Offsite measurement workflow
+- Installer workflow and install completion reporting
+- Submission history and pending sync review
+- Settings, guide, tips, and device preferences
+
+## Tech Stack
+
+- React
+- Vite
+- TypeScript
+- Tailwind CSS
+
+## Notes
+
+- The live app version is controlled in `src/config/version.ts`.
+- The in-app changelog is controlled in `src/config/changelog.ts`.
+- Startup guide steps and page tips are controlled in `src/config/onboarding.ts`.
 
 ## Licensing
 
-This client is part of the Decal Monkey Field App repository and is released under the GNU General Public License v3.0. See the root `README.md` and `LICENSE` files for GPLv3 terms, commercial licensing, and full IP acquisition options.
+This client is part of the Decal Monkey Field App repository and is covered by the GPLv3 and any separate written commercial licensing agreement described in the root `README.md`.
