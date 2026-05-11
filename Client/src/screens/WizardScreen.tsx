@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, ActionButton, Tile, Shell } from "../components/ui";
+import { getApiBaseUrl } from "../utils/api";
 
 const PRINTAVO_CATEGORIES = [
   "Coroplast Sign",
@@ -19,14 +20,6 @@ const MEASUREMENT_UNITS = [
   { value: "in", label: "Inch" },
   { value: "ft", label: "Feet" },
 ] as const;
-
-function getApiBaseUrl() {
-  try {
-    return String(localStorage.getItem("dm_api_base_url") || "http://localhost:3001").trim().replace(/\/+$/, "");
-  } catch {
-    return "http://localhost:3001";
-  }
-}
 
 type WizardProps = {
   steps: string[];

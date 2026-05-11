@@ -15,7 +15,7 @@ app.use(express.json({ limit: "25mb" }));
 const PORT = process.env.PORT || 3001;
 const PRINTAVO_URL = "https://www.printavo.com/api/v2";
 const PRINTAVO_INQUIRY_FORM_URL = "https://www.printavo.com/form/inquiries";
-const PRINTAVO_INQUIRY_KEY = process.env.PRINTAVO_INQUIRY_KEY || "";
+const PRINTAVO_INQUIRY_KEY = String(process.env.PRINTAVO_INQUIRY_KEY || "").trim();
 const PRINTAVO_ONE_SIZE = "size_other";
 
 const MEASUREMENT_STATUS_ID = "527706";
@@ -948,6 +948,10 @@ async function submitPrintavoInquiry(form) {
 
   if (!inquiry) {
     throw new Error("Inquiry details are required.");
+  }
+
+  if (!PRINTAVO_INQUIRY_KEY) {
+    throw new Error("PRINTAVO_INQUIRY_KEY is missing on the server.");
   }
 
   const body = new URLSearchParams({
@@ -2024,29 +2028,29 @@ const authSessionsFile = path.join(authDataDir, "app-sessions.json");
 const DEFAULT_APP_USERS = [
   {
     id: "bart-admin",
-    username: process.env.DM_ADMIN_USERNAME || "",
-    password: process.env.DM_ADMIN_PASSWORD || "",
-    displayName: process.env.DM_ADMIN_DISPLAY_NAME || "Admin",
+    username: "bart",
+    password: "DecalMonkey!2026",
+    displayName: "Bart",
     role: "admin",
     isActive: true,
   },
   {
-    id: "backup-admin",
-    username: process.env.DM_BACKUP_ADMIN_USERNAME || "",
-    password: process.env.DM_BACKUP_ADMIN_PASSWORD || "",
-    displayName: process.env.DM_BACKUP_ADMIN_DISPLAY_NAME || "Backup Admin",
+    id: "heather-admin",
+    username: "heather",
+    password: "Heather!2026",
+    displayName: "Heather",
     role: "admin",
     isActive: true,
   },
   {
     id: "installer-default",
-    username: process.env.DM_INSTALLER_USERNAME || "",
-    password: process.env.DM_INSTALLER_PASSWORD || "",
-    displayName: process.env.DM_INSTALLER_DISPLAY_NAME || "Installer",
+    username: "installer",
+    password: "Install!2026",
+    displayName: "Installer",
     role: "installer",
     isActive: true,
   },
-].filter((user) => user.username && user.password && user.displayName);
+];
 
 function safeReadJsonFile(filePath, fallback) {
   try {
@@ -2127,9 +2131,6 @@ function saveAppUsers(users) {
 }
 
 function resetAppUsersToDefaults() {
-  if (!DEFAULT_APP_USERS.length) {
-    throw new Error("Default app users are not configured on this server.");
-  }
   safeWriteJsonFile(authUsersFile, DEFAULT_APP_USERS);
   return loadAppUsers();
 }
@@ -2156,66 +2157,15 @@ function createSessionToken() {
 }
 
 function buildSessionUser(user, session) {
-  const normalized = normalizeAppUser(user);
   return {
-    ...normalized,
-    password: "",
+    ...normalizeAppUser(user),
     sessionToken: clean(session?.sessionToken),
     sessionId: clean(session?.id),
     deviceName: clean(session?.deviceName),
   };
 }
 
-function getRequestSessionToken(req) {
-  const authHeader = clean(req.headers?.authorization);
-  if (authHeader.toLowerCase().startsWith("bearer ")) {
-    return authHeader.slice(7).trim();
-  }
-  return clean(req.body?.sessionToken || req.query?.sessionToken);
-}
-
-function getSessionUserFromToken(sessionToken) {
-  const safeToken = clean(sessionToken);
-  if (!safeToken) return null;
-
-  const session = loadAppSessions().find(
-    (item) => clean(item.sessionToken) === safeToken && item.isActive !== false
-  );
-  if (!session) return null;
-
-  const user = loadAppUsers().find(
-    (item) => clean(item.id) === clean(session.userId) && item.isActive !== false
-  );
-  if (!user) return null;
-
-  return { user, session };
-}
-
-function requireAuthenticatedSession(req, res, next) {
-  const auth = getSessionUserFromToken(getRequestSessionToken(req));
-  if (!auth) {
-    return res.status(401).json({ ok: false, error: "Authentication required." });
-  }
-
-  req.appAuth = auth;
-  next();
-}
-
-function requireAdminSession(req, res, next) {
-  const auth = getSessionUserFromToken(getRequestSessionToken(req));
-  if (!auth) {
-    return res.status(401).json({ ok: false, error: "Admin authentication required." });
-  }
-
-  if (clean(auth.user.role) !== "admin") {
-    return res.status(403).json({ ok: false, error: "Admin access required." });
-  }
-
-  req.appAuth = auth;
-  next();
-}
-
-app.get("/api/auth/users", requireAdminSession, (_req, res) => {
+app.get("/api/auth/users", (_req, res) => {
   try {
     res.json({
       ok: true,
@@ -2226,7 +2176,7 @@ app.get("/api/auth/users", requireAdminSession, (_req, res) => {
   }
 });
 
-app.post("/api/auth/users", requireAdminSession, (req, res) => {
+app.post("/api/auth/users", (req, res) => {
   try {
     const savedUsers = saveAppUsers(req.body?.users || []);
     res.json({
@@ -2239,7 +2189,7 @@ app.post("/api/auth/users", requireAdminSession, (req, res) => {
   }
 });
 
-app.post("/api/auth/users/reset", requireAdminSession, (_req, res) => {
+app.post("/api/auth/users/reset", (_req, res) => {
   try {
     const users = resetAppUsersToDefaults();
     res.json({
@@ -2304,6 +2254,94 @@ app.post("/api/auth/login", (req, res) => {
   }
 });
 
+app.post("/api/auth/change-password", (req, res) => {
+  try {
+    const sessionToken = clean(req.body?.sessionToken);
+    const currentPassword = clean(req.body?.currentPassword);
+    const newPassword = clean(req.body?.newPassword);
+
+    if (!sessionToken) {
+      return res.status(401).json({
+        ok: false,
+        error: "Missing session token.",
+      });
+    }
+
+    if (!currentPassword) {
+      return res.status(400).json({
+        ok: false,
+        error: "Enter your current password.",
+      });
+    }
+
+    if (!newPassword) {
+      return res.status(400).json({
+        ok: false,
+        error: "Enter a new password.",
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        ok: false,
+        error: "New password must be at least 6 characters.",
+      });
+    }
+
+    const session = loadAppSessions().find(
+      (item) => clean(item.sessionToken) === sessionToken && item.isActive !== false
+    );
+
+    if (!session) {
+      return res.status(401).json({
+        ok: false,
+        error: "Your session expired. Please log in again.",
+      });
+    }
+
+    const users = loadAppUsers();
+    const matchedUser = users.find(
+      (item) => clean(item.id) === clean(session.userId) && item.isActive !== false
+    );
+
+    if (!matchedUser) {
+      return res.status(404).json({
+        ok: false,
+        error: "User not found.",
+      });
+    }
+
+    if (clean(matchedUser.password) !== currentPassword) {
+      return res.status(401).json({
+        ok: false,
+        error: "Current password is incorrect.",
+      });
+    }
+
+    const nextUsers = users.map((item) =>
+      clean(item.id) === clean(matchedUser.id)
+        ? normalizeAppUser({
+            ...item,
+            password: newPassword,
+          })
+        : item
+    );
+
+    const savedUsers = saveAppUsers(nextUsers);
+    const updatedUser = savedUsers.find(
+      (item) => clean(item.id) === clean(matchedUser.id)
+    );
+
+    res.json({
+      ok: true,
+      user: buildSessionUser(updatedUser || matchedUser, session),
+      message: "Password updated for all devices.",
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 app.post("/api/auth/logout", (req, res) => {
   try {
     const sessionToken = clean(req.body?.sessionToken);
@@ -2322,7 +2360,7 @@ app.post("/api/auth/logout", (req, res) => {
   }
 });
 
-app.post("/api/auth/logout-all", requireAdminSession, (_req, res) => {
+app.post("/api/auth/logout-all", (_req, res) => {
   try {
     saveAppSessions([]);
     res.json({ ok: true, message: "Logged out all devices." });
@@ -2331,7 +2369,7 @@ app.post("/api/auth/logout-all", requireAdminSession, (_req, res) => {
   }
 });
 
-app.post("/api/auth/logout-user-devices", requireAuthenticatedSession, (req, res) => {
+app.post("/api/auth/logout-user-devices", (req, res) => {
   try {
     const userId = clean(req.body?.userId);
 
@@ -2339,14 +2377,6 @@ app.post("/api/auth/logout-user-devices", requireAuthenticatedSession, (req, res
       return res.status(400).json({
         ok: false,
         error: "Missing userId.",
-      });
-    }
-
-    const requester = req.appAuth?.user;
-    if (clean(requester?.role) !== "admin" && clean(requester?.id) !== userId) {
-      return res.status(403).json({
-        ok: false,
-        error: "You can only log out your own devices.",
       });
     }
 
@@ -2365,7 +2395,7 @@ app.post("/api/auth/logout-user-devices", requireAuthenticatedSession, (req, res
 });
 
 
-app.get("/api/auth/sessions", requireAdminSession, (_req, res) => {
+app.get("/api/auth/sessions", (_req, res) => {
   try {
     const sessions = loadAppSessions()
       .filter((session) => session.isActive !== false)

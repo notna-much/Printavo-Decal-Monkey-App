@@ -15,6 +15,42 @@ const roleOptions = [
   { value: "field", label: "Field Access" },
 ];
 
+function EyeIcon({ open }: { open: boolean }) {
+  if (open) {
+    return (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        className="h-5 w-5"
+        aria-hidden="true"
+      >
+        <path d="M3 3l18 18" />
+        <path d="M10.58 10.58A2 2 0 0013.42 13.42" />
+        <path d="M9.88 5.09A10.94 10.94 0 0112 4c5 0 9.27 3.11 11 8a11.83 11.83 0 01-4.16 5.94" />
+        <path d="M6.61 6.61A11.84 11.84 0 001 12c1.73 4.89 6 8 11 8a10.94 10.94 0 005.09-1.12" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      className="h-5 w-5"
+      aria-hidden="true"
+    >
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
 function formatRoleLabel(role: string) {
   const match = roleOptions.find((item) => item.value === role);
   return match?.label || role || "User";
@@ -26,6 +62,7 @@ export default function SettingsScreen({
   apiBaseUrl,
   setApiBaseUrl,
   deviceName,
+  resolvedDeviceName,
   setDeviceName,
   currentUser,
   authUser,
@@ -36,6 +73,7 @@ export default function SettingsScreen({
   saveAuthUsersNow,
   resetAuthUsers,
   handleLogout,
+  handleChangePassword,
   syncSharedAuthUsers,
   activeAuthSessions,
   syncActiveAuthSessions,
@@ -52,11 +90,22 @@ export default function SettingsScreen({
   installerCacheCount,
   measurementCacheCount,
   historySnapshotCount,
+  showStartupGuide,
+  setShowStartupGuide,
+  showTips,
+  setShowTips,
+  openQuickGuide,
+  resetDismissedTips,
 }: any) {
   const [showChangelog, setShowChangelog] = useState(false);
   const [deviceSaveState, setDeviceSaveState] = useState("idle");
   const [connectionSaveState, setConnectionSaveState] = useState("idle");
   const [loginSaveState, setLoginSaveState] = useState("idle");
+  const [passwordSaveState, setPasswordSaveState] = useState("idle");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPasswordFields, setShowPasswordFields] = useState(false);
 
   const statusColor =
     connectionState.status === "connected"
@@ -89,6 +138,12 @@ export default function SettingsScreen({
     if (message.includes("app login")) {
       setLoginSaveState("saved");
       const timer = window.setTimeout(() => setLoginSaveState("idle"), 2200);
+      return () => window.clearTimeout(timer);
+    }
+
+    if (message.includes("password updated")) {
+      setPasswordSaveState("saved");
+      const timer = window.setTimeout(() => setPasswordSaveState("idle"), 2200);
       return () => window.clearTimeout(timer);
     }
   }, [settingsMessage]);
@@ -155,6 +210,51 @@ export default function SettingsScreen({
     if (loginSaveState === "saving") return "Saving...";
     if (loginSaveState === "saved") return "App Logins Saved";
     return "Save App Logins";
+  };
+
+  const getPasswordButtonLabel = () => {
+    if (passwordSaveState === "saving") return "Updating...";
+    if (passwordSaveState === "saved") return "Password Updated";
+    return "Change Password";
+  };
+
+  const handleSavePassword = async () => {
+    const safeCurrentPassword = String(currentPassword || "").trim();
+    const safeNewPassword = String(newPassword || "").trim();
+    const safeConfirmPassword = String(confirmPassword || "").trim();
+
+    if (!safeCurrentPassword) {
+      setPasswordSaveState("idle");
+      return;
+    }
+
+    if (!safeNewPassword) {
+      setPasswordSaveState("idle");
+      return;
+    }
+
+    if (safeNewPassword.length < 6) {
+      setPasswordSaveState("idle");
+      return;
+    }
+
+    if (safeNewPassword !== safeConfirmPassword) {
+      setPasswordSaveState("idle");
+      return;
+    }
+
+    setPasswordSaveState("saving");
+
+    try {
+      await handleChangePassword(safeCurrentPassword, safeNewPassword);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setPasswordSaveState("saved");
+      window.setTimeout(() => setPasswordSaveState("idle"), 2200);
+    } catch {
+      setPasswordSaveState("idle");
+    }
   };
 
   const goHome = () => {
@@ -227,6 +327,172 @@ export default function SettingsScreen({
           </Card>
 
           <Card className="p-5 space-y-4">
+            <div>
+              <div className="text-xl font-bold text-slate-800">Change Password</div>
+              <div className="text-sm text-slate-500 mt-1">
+                Update your shared app password for this account across all devices.
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-4 text-sm">
+              <div>
+                <div className="font-semibold text-slate-800 mb-2">Current Password</div>
+                <div className="relative">
+                  <input
+                    className="w-full rounded-2xl border border-slate-300 px-4 py-3 pr-14"
+                    type={showPasswordFields ? "text" : "password"}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Current password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordFields((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-xl p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    aria-label={showPasswordFields ? "Hide password" : "Show password"}
+                    title={showPasswordFields ? "Hide password" : "Show password"}
+                  >
+                    <EyeIcon open={!showPasswordFields} />
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <div className="font-semibold text-slate-800 mb-2">New Password</div>
+                <div className="relative">
+                  <input
+                    className="w-full rounded-2xl border border-slate-300 px-4 py-3 pr-14"
+                    type={showPasswordFields ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="At least 6 characters"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordFields((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-xl p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    aria-label={showPasswordFields ? "Hide password" : "Show password"}
+                    title={showPasswordFields ? "Hide password" : "Show password"}
+                  >
+                    <EyeIcon open={!showPasswordFields} />
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <div className="font-semibold text-slate-800 mb-2">Confirm New Password</div>
+                <div className="relative">
+                  <input
+                    className="w-full rounded-2xl border border-slate-300 px-4 py-3 pr-14"
+                    type={showPasswordFields ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter new password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswordFields((prev) => !prev)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-xl p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    aria-label={showPasswordFields ? "Hide password" : "Show password"}
+                    title={showPasswordFields ? "Hide password" : "Show password"}
+                  >
+                    <EyeIcon open={!showPasswordFields} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {!String(currentPassword || "").trim() ? (
+              <div className="text-xs text-slate-500">
+                Enter your current password to confirm this change.
+              </div>
+            ) : null}
+
+            {String(newPassword || "").trim() && String(newPassword || "").trim().length < 6 ? (
+              <div className="text-xs text-red-600">
+                New password must be at least 6 characters.
+              </div>
+            ) : null}
+
+            {String(confirmPassword || "").trim() &&
+            String(newPassword || "").trim() !== String(confirmPassword || "").trim() ? (
+              <div className="text-xs text-red-600">
+                New password and confirmation must match.
+              </div>
+            ) : null}
+
+            <div className="flex gap-3 flex-wrap">
+              <ActionButton
+                onClick={handleSavePassword}
+                disabled={
+                  passwordSaveState === "saving" ||
+                  !String(currentPassword || "").trim() ||
+                  !String(newPassword || "").trim() ||
+                  String(newPassword || "").trim().length < 6 ||
+                  String(newPassword || "").trim() !== String(confirmPassword || "").trim()
+                }
+              >
+                {getPasswordButtonLabel()}
+              </ActionButton>
+            </div>
+          </Card>
+
+          <Card className="p-5 space-y-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <div className="text-xl font-bold text-slate-800">Guide & Suggestions</div>
+                <div className="text-sm text-slate-500 mt-1">
+                  Control the startup walkthrough and the smaller page tips.
+                </div>
+              </div>
+
+              <div className="flex gap-3 flex-wrap">
+                <ActionButton variant="secondary" onClick={openQuickGuide}>
+                  Open Quick Guide
+                </ActionButton>
+                <ActionButton variant="secondary" onClick={goToGuide}>
+                  Open Full Guide
+                </ActionButton>
+                <ActionButton variant="secondary" onClick={resetDismissedTips}>
+                  Reset Tips
+                </ActionButton>
+              </div>
+            </div>
+
+            <div className="space-y-4 text-sm">
+              <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={showStartupGuide}
+                  onChange={(e) => setShowStartupGuide(e.target.checked)}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="block font-semibold text-slate-800">
+                    Show quick guide at startup
+                  </span>
+                  Present the first-time quick walkthrough after sign-in.
+                </span>
+              </label>
+
+              <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={showTips}
+                  onChange={(e) => setShowTips(e.target.checked)}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="block font-semibold text-slate-800">
+                    Show tips
+                  </span>
+                  Allow the smaller page-by-page help popups to appear after the quick guide is closed.
+                </span>
+              </label>
+            </div>
+          </Card>
+
+          <Card className="p-5 space-y-4">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="text-xl font-bold text-slate-800">Device & App Info</div>
 
@@ -245,7 +511,8 @@ export default function SettingsScreen({
                   placeholder="Leave blank to use this device's detected name"
                 />
                 <div className="mt-2 text-xs text-slate-500">
-                  Leave this blank and save to auto-use the current device and browser name.
+                  Detected device:{" "}
+                  <span className="font-semibold text-slate-700">{resolvedDeviceName}</span>
                 </div>
               </div>
 
@@ -335,7 +602,7 @@ export default function SettingsScreen({
                     className="w-full rounded-2xl border border-slate-300 px-4 py-3"
                     value={apiBaseUrl}
                     onChange={(e) => setApiBaseUrl(e.target.value)}
-                    placeholder="http://api.decalmonkey.biz"
+                    placeholder="https://api.decalmonkey.biz"
                   />
                 </div>
 

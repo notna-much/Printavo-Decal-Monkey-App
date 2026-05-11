@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Card, ActionButton, Shell } from "../components/ui";
+import { getApiBaseUrl } from "../utils/api";
 
 const outcomeOptions = [
   {
@@ -49,18 +50,6 @@ function formatDateTime(dateString: string) {
     });
   } catch {
     return dateString;
-  }
-}
-
-function getApiBaseUrl() {
-  try {
-    return String(
-      localStorage.getItem("dm_api_base_url") || "http://localhost:3001"
-    )
-      .trim()
-      .replace(/\/+$/, "");
-  } catch {
-    return "http://localhost:3001";
   }
 }
 
@@ -139,7 +128,6 @@ function uniqueStrings(values: any[]) {
 }
 
 function buildInstallNoteAppend({
-  selectedInstall,
   outcome,
   completionNotes,
   issuePriority,
@@ -148,6 +136,12 @@ function buildInstallNoteAppend({
   uploadedCompletionImageUrls,
   completedAt,
 }: any) {
+  const normalizedCompletionNotes = String(completionNotes || "").trim();
+  const normalizedIssuePriority = String(issuePriority || "").trim();
+  const normalizedIssueSummary = String(issueSummary || "").trim();
+  const normalizedRecommendedNextStep = String(recommendedNextStep || "").trim();
+  const hasIssueDetails =
+    outcome === "completed_with_issues" || outcome === "unable_to_complete";
   const lines = [];
 
   lines.push(
@@ -161,38 +155,32 @@ function buildInstallNoteAppend({
   );
   lines.push(`Outcome: ${formatOutcome(outcome)}`);
 
-  if (completionNotes) {
-    lines.push(`Completion Notes: ${completionNotes}`);
+  if (normalizedCompletionNotes) {
+    lines.push(`Completion Notes: ${normalizedCompletionNotes}`);
   }
 
-  if (issuePriority && issuePriority !== "none") {
+  if (
+    hasIssueDetails &&
+    normalizedIssuePriority &&
+    normalizedIssuePriority !== "none"
+  ) {
     lines.push(
-      `Issue Priority: ${String(issuePriority)
+      `Issue Priority: ${normalizedIssuePriority
         .replace(/_/g, " ")
         .replace(/\b\w/g, (c) => c.toUpperCase())}`
     );
   }
 
-  if (issueSummary) {
-    lines.push(`Issue Summary: ${issueSummary}`);
+  if (hasIssueDetails && normalizedIssueSummary) {
+    lines.push(`Issue Summary: ${normalizedIssueSummary}`);
   }
 
-  if (recommendedNextStep) {
-    lines.push(`Recommended Next Step: ${recommendedNextStep}`);
+  if (hasIssueDetails && normalizedRecommendedNextStep) {
+    lines.push(`Recommended Next Step: ${normalizedRecommendedNextStep}`);
   }
 
   if (uploadedCompletionImageUrls?.length) {
     lines.push(`Completion Photos:\n${uploadedCompletionImageUrls.join("\n")}`);
-  }
-
-  if (selectedInstall?.printavoQuoteNumber || selectedInstall?.invoiceNumber) {
-    lines.push(
-      `Source Job: ${
-        selectedInstall.printavoQuoteNumber ||
-        selectedInstall.invoiceNumber ||
-        selectedInstall.id
-      }`
-    );
   }
 
   return lines.filter(Boolean).join("\n\n");
@@ -371,7 +359,6 @@ export default function InstallerCompletionScreen({
 
       try {
         const installNoteAppend = buildInstallNoteAppend({
-          selectedInstall,
           outcome,
           completionNotes,
           issuePriority,

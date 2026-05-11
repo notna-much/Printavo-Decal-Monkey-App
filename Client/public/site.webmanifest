@@ -1,0 +1,23 @@
+{
+  "name": "Decal Monkey Field App",
+  "short_name": "DM Field App",
+  "description": "Decal Monkey field workflows for inquiries, orders, measurements, and installs.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#4B257A",
+  "theme_color": "#4B257A",
+  "icons": [
+    {
+      "src": "/app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

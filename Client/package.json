@@ -2,7 +2,6 @@
   "name": "react-vite-ts",
   "private": true,
   "version": "0.0.0",
-  "license": "GPL-3.0-only",
   "type": "module",
   "scripts": {
     "dev": "vite",

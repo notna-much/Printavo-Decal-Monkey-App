@@ -1,18 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, ActionButton, Shell } from "../components/ui";
+import { getApiBaseUrl } from "../utils/api";
 
 const MEASUREMENT_UNITS = [
   { value: "in", label: "Inch" },
   { value: "ft", label: "Feet" },
 ] as const;
-
-function getApiBaseUrl() {
-  try {
-    return String(localStorage.getItem("dm_api_base_url") || "http://localhost:3001").trim().replace(/\/+$/, "");
-  } catch {
-    return "http://localhost:3001";
-  }
-}
 
 export default function MeasurementScreen({
   form,

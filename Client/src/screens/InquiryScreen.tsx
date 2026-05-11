@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { ActionButton, Card, Shell } from "../components/ui";
+import { getApiBaseUrl } from "../utils/api";
 
 const purple = "#4B257A";
 const green = "#7BC043";
@@ -125,7 +126,7 @@ export default function InquiryScreen({
 
     try {
       const response = await fetch(
-        `${String(apiBaseUrl || "http://localhost:3001").replace(/\/+$/, "")}/api/printavo/inquiry`,
+        `${getApiBaseUrl(apiBaseUrl)}/api/printavo/inquiry`,
         {
           method: "POST",
           headers: {

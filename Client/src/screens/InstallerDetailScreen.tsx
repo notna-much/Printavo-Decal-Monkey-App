@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, ActionButton, Shell } from "../components/ui";
+import { getApiBaseUrl } from "../utils/api";
+import { htmlToPlainText } from "../utils/text";
 
 function formatOutcome(outcome: string) {
   switch (outcome) {
@@ -44,18 +46,6 @@ function formatDateTime(dateString: string) {
   }
 }
 
-function getApiBaseUrl() {
-  try {
-    return String(
-      localStorage.getItem("dm_api_base_url") || "http://localhost:3001"
-    )
-      .trim()
-      .replace(/\/+$/, "");
-  } catch {
-    return "http://localhost:3001";
-  }
-}
-
 function getInvoiceDisplay(selectedInstall: any) {
   return (
     selectedInstall?.printavoQuoteNumber ||
@@ -68,6 +58,7 @@ function getInstallInstructionText(selectedInstall: any) {
   const lineItemInstructions = (selectedInstall?.lineItems || [])
     .map((item: any, index: number) => {
       const parts = [item?.description, item?.otherDetails]
+        .map((value) => htmlToPlainText(value))
         .filter(Boolean)
         .join("\n");
       if (!parts) return "";
@@ -78,8 +69,8 @@ function getInstallInstructionText(selectedInstall: any) {
 
   return (
     lineItemInstructions ||
-    selectedInstall?.mockup ||
-    selectedInstall?.productionNote ||
+    htmlToPlainText(selectedInstall?.mockup) ||
+    htmlToPlainText(selectedInstall?.productionNote) ||
     "No install instructions were loaded for this job."
   );
 }
@@ -114,8 +105,8 @@ function getLineItemSections(selectedInstall: any) {
         itemNumber: item?.itemNumber || String(index + 1),
         quantity: item?.quantity || "",
         color: item?.color || "",
-        description: item?.description || "",
-        otherDetails: item?.otherDetails || "",
+        description: htmlToPlainText(item?.description),
+        otherDetails: htmlToPlainText(item?.otherDetails),
         sizeLabel: item?.sizeLabel || "",
         width: matchingPhoto?.width || "",
         height: matchingPhoto?.height || "",
@@ -124,7 +115,7 @@ function getLineItemSections(selectedInstall: any) {
           matchingPhoto?.imageData ||
           item?.imageUrl ||
           "",
-        notes: matchingPhoto?.markupNotes || "",
+        notes: htmlToPlainText(matchingPhoto?.markupNotes),
       };
     });
   }
@@ -141,7 +132,7 @@ function getLineItemSections(selectedInstall: any) {
     width: entry?.width || "",
     height: entry?.height || "",
     imageData: entry?.annotatedImageData || entry?.imageData || "",
-    notes: entry?.markupNotes || "",
+    notes: htmlToPlainText(entry?.markupNotes),
   }));
 }
 

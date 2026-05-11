@@ -1,7 +1,20 @@
 export const CHANGELOG = [
   {
-    version: "1.0.2",
+    version: "1.0.3",
     label: "Latest Update",
+    date: "April 2026",
+    changes: [
+      "Fixed device naming so leaving the field blank now correctly uses the detected device and browser name.",
+      "Added self-service password changes in Settings, with updates saved to the shared server login system for use on other devices.",
+      "Added a first-time quick guide at sign-in plus page-by-page tips, with new Guide & Suggestions controls in Settings.",
+      "Unified home screen and shortcut branding so supported iPhone, iPad, Android, and desktop shortcuts use the Decal Monkey field app icon on the purple app background.",
+      "Cleaned up installer report notes sent to Printavo so successful installs no longer include default issue priority text when no issue was selected.",
+      "Removed the Source Job line from installer report notes in Printavo so completion updates only post the details that actually happened.",
+    ],
+  },
+  {
+    version: "1.0.2",
+    label: "Previous Build",
     date: "April 2026",
     changes: [
       "Enhanced device naming with automatic detection and optional custom naming while preventing blank values.",
@@ -22,7 +35,7 @@ export const CHANGELOG = [
   },
   {
     version: "1.0.1",
-    label: "Previous Build",
+    label: "Earlier Build",
     date: "April 2026",
     changes: [
       "Added Inquiry intake that sends leads straight into Printavo inquiries.",

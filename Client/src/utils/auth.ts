@@ -1,3 +1,5 @@
+import { getApiBaseUrl } from "./api";
+
 export type AppUserRole = "admin" | "sales" | "installer" | "field";
 
 export type AppUser = {
@@ -14,7 +16,32 @@ export type AppUser = {
 
 const SESSION_STORAGE_KEY = "dm_app_auth_session";
 
-const DEFAULT_USERS: AppUser[] = [];
+const DEFAULT_USERS: AppUser[] = [
+  {
+    id: "bart-admin",
+    username: "bart",
+    password: "DecalMonkey!2026",
+    displayName: "Bart",
+    role: "admin",
+    isActive: true,
+  },
+  {
+    id: "heather-admin",
+    username: "heather",
+    password: "Heather!2026",
+    displayName: "Heather",
+    role: "admin",
+    isActive: true,
+  },
+  {
+    id: "installer-default",
+    username: "installer",
+    password: "Install!2026",
+    displayName: "Installer",
+    role: "installer",
+    isActive: true,
+  },
+];
 
 function safeJsonParse<T>(value: string | null, fallback: T): T {
   try {
@@ -121,15 +148,6 @@ export function authenticateAppUser(
   };
 }
 
-function getApiBaseUrl(apiBaseUrl?: string) {
-  return clean(apiBaseUrl || localStorage.getItem("dm_api_base_url") || "http://localhost:3001").replace(/\/+$/, "");
-}
-
-function authHeaders(sessionToken?: string): Record<string, string> {
-  const token = clean(sessionToken);
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
 async function parseApiJson(response: Response) {
   const rawText = await response.text();
 
@@ -140,10 +158,8 @@ async function parseApiJson(response: Response) {
   }
 }
 
-export async function fetchSharedAuthUsers(apiBaseUrl?: string, sessionToken?: string): Promise<AppUser[]> {
-  const response = await fetch(`${getApiBaseUrl(apiBaseUrl)}/api/auth/users`, {
-    headers: authHeaders(sessionToken),
-  });
+export async function fetchSharedAuthUsers(apiBaseUrl?: string): Promise<AppUser[]> {
+  const response = await fetch(`${getApiBaseUrl(apiBaseUrl)}/api/auth/users`);
   const data = await parseApiJson(response);
 
   if (!response.ok || !data?.ok) {
@@ -155,12 +171,11 @@ export async function fetchSharedAuthUsers(apiBaseUrl?: string, sessionToken?: s
   );
 }
 
-export async function saveSharedAuthUsers(users: AppUser[], apiBaseUrl?: string, sessionToken?: string) {
+export async function saveSharedAuthUsers(users: AppUser[], apiBaseUrl?: string) {
   const response = await fetch(`${getApiBaseUrl(apiBaseUrl)}/api/auth/users`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...authHeaders(sessionToken),
     },
     body: JSON.stringify({ users }),
   });
@@ -176,12 +191,11 @@ export async function saveSharedAuthUsers(users: AppUser[], apiBaseUrl?: string,
   );
 }
 
-export async function resetSharedAuthUsers(apiBaseUrl?: string, sessionToken?: string) {
+export async function resetSharedAuthUsers(apiBaseUrl?: string) {
   const response = await fetch(`${getApiBaseUrl(apiBaseUrl)}/api/auth/users/reset`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...authHeaders(sessionToken),
     },
   });
 
@@ -234,6 +248,41 @@ export async function loginSharedAuthUser({
   };
 }
 
+export async function changeSharedAuthPassword({
+  apiBaseUrl,
+  sessionToken,
+  currentPassword,
+  newPassword,
+}: {
+  apiBaseUrl?: string;
+  sessionToken?: string;
+  currentPassword: string;
+  newPassword: string;
+}) {
+  const response = await fetch(`${getApiBaseUrl(apiBaseUrl)}/api/auth/change-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      sessionToken: clean(sessionToken),
+      currentPassword: clean(currentPassword),
+      newPassword: clean(newPassword),
+    }),
+  });
+
+  const data = await parseApiJson(response);
+
+  if (!response.ok || !data?.ok) {
+    throw new Error(data?.error || "Could not change password.");
+  }
+
+  return {
+    user: normalizeUser(data.user),
+    message: data?.message || "Password updated.",
+  };
+}
+
 export async function logoutSharedAuthUser(
   sessionToken?: string,
   apiBaseUrl?: string
@@ -255,12 +304,11 @@ export async function logoutSharedAuthUser(
   return data;
 }
 
-export async function logoutAllSharedAuthUsers(apiBaseUrl?: string, sessionToken?: string) {
+export async function logoutAllSharedAuthUsers(apiBaseUrl?: string) {
   const response = await fetch(`${getApiBaseUrl(apiBaseUrl)}/api/auth/logout-all`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...authHeaders(sessionToken),
     },
   });
 
@@ -276,17 +324,14 @@ export async function logoutAllSharedAuthUsers(apiBaseUrl?: string, sessionToken
 export async function logoutMySharedAuthDevices({
   apiBaseUrl,
   userId,
-  sessionToken,
 }: {
   apiBaseUrl?: string;
   userId: string;
-  sessionToken?: string;
 }) {
   const response = await fetch(`${getApiBaseUrl(apiBaseUrl)}/api/auth/logout-user-devices`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...authHeaders(sessionToken),
     },
     body: JSON.stringify({ userId: clean(userId) }),
   });
@@ -301,10 +346,8 @@ export async function logoutMySharedAuthDevices({
 }
 
 
-export async function fetchSharedAuthSessions(apiBaseUrl?: string, sessionToken?: string) {
-  const response = await fetch(`${getApiBaseUrl(apiBaseUrl)}/api/auth/sessions`, {
-    headers: authHeaders(sessionToken),
-  });
+export async function fetchSharedAuthSessions(apiBaseUrl?: string) {
+  const response = await fetch(`${getApiBaseUrl(apiBaseUrl)}/api/auth/sessions`);
   const data = await parseApiJson(response);
 
   if (!response.ok || !data?.ok) {

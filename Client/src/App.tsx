@@ -27,6 +27,7 @@ import InquiryScreen from "./screens/InquiryScreen";
 import {
   clearStoredAuthSession,
   createEmptyAppUser,
+  changeSharedAuthPassword,
   fetchSharedAuthSessions,
   fetchSharedAuthUsers,
   getDefaultScreenForRole,
@@ -43,6 +44,8 @@ import {
   saveSharedAuthUsers,
   validateStoredSession,
 } from "./utils/auth";
+import { ActionButton } from "./components/ui";
+import { QUICK_GUIDE_STEPS, SCREEN_TIPS } from "./config/onboarding";
 
 const MOCKUP_PLACEHOLDER = "Specify Size, Placement, and any necessary details";
 
@@ -456,6 +459,230 @@ function uniqueStrings(values: any[]) {
   );
 }
 
+function getDetectedDeviceName() {
+  if (typeof navigator === "undefined") {
+    return "Web Browser";
+  }
+
+  const nav = navigator as Navigator & {
+    userAgentData?: {
+      mobile?: boolean;
+      platform?: string;
+      brands?: Array<{ brand?: string; version?: string }>;
+    };
+  };
+
+  const userAgent = String(nav.userAgent || "");
+  const platform = String(nav.userAgentData?.platform || nav.platform || "");
+  const source = `${userAgent} ${platform}`.toLowerCase();
+
+  let browser = "Browser";
+  if (source.includes("edg/")) {
+    browser = "Edge";
+  } else if (
+    source.includes("chrome/") &&
+    !source.includes("edg/") &&
+    !source.includes("opr/")
+  ) {
+    browser = "Chrome";
+  } else if (source.includes("safari/") && !source.includes("chrome/")) {
+    browser = "Safari";
+  } else if (source.includes("firefox/")) {
+    browser = "Firefox";
+  }
+
+  let device = "Desktop";
+  if (/iphone/.test(source)) {
+    device = "iPhone";
+  } else if (/ipad/.test(source)) {
+    device = "iPad";
+  } else if (/android/.test(source)) {
+    device = nav.userAgentData?.mobile ? "Android Phone" : "Android Tablet";
+  } else if (/mac/.test(source)) {
+    device = "Mac";
+  } else if (/windows/.test(source)) {
+    device = "Windows PC";
+  } else if (/cros/.test(source)) {
+    device = "Chromebook";
+  } else if (/linux/.test(source)) {
+    device = "Linux PC";
+  }
+
+  return `${device} - ${browser}`;
+}
+
+function getStoredBoolean(key: string, fallback: boolean) {
+  return String(getStored(key, fallback ? "true" : "false")).toLowerCase() === "true";
+}
+
+function getStoredJson<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function QuickGuideModal({
+  stepIndex,
+  setStepIndex,
+  dontShowAtStartup,
+  setDontShowAtStartup,
+  onClose,
+}: any) {
+  const step = QUICK_GUIDE_STEPS[stepIndex] || QUICK_GUIDE_STEPS[0];
+  const isFirstStep = stepIndex <= 0;
+  const isLastStep = stepIndex >= QUICK_GUIDE_STEPS.length - 1;
+
+  return (
+    <div className="dm-modal-backdrop fixed inset-0 z-[95] bg-black/60 flex items-end justify-center p-2 sm:items-center sm:p-4">
+      <div className="dm-modal-enter flex max-h-[calc(100dvh-1rem)] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]">
+        <div
+          className="shrink-0 px-4 py-4 text-white sm:px-6 sm:py-5"
+          style={{ background: "linear-gradient(135deg, #4B257A 0%, #6D28D9 100%)" }}
+        >
+          <div className="flex items-start justify-between gap-3 sm:items-center sm:gap-4">
+            <div>
+              <div className="text-sm font-semibold uppercase tracking-[0.2em] text-white/80">
+                Quick Guide
+              </div>
+              <div className="mt-1 text-2xl font-black leading-tight sm:text-3xl">
+                Decal Monkey Walkthrough
+              </div>
+              <div className="mt-2 text-sm text-white/85">
+                Step {stepIndex + 1} of {QUICK_GUIDE_STEPS.length}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-2xl bg-white/15 px-4 py-2 text-sm font-semibold hover:bg-white/25"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6">
+          <div className="space-y-4 sm:space-y-5">
+            <div className="inline-flex rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-purple-700">
+              {step.badge}
+            </div>
+
+            <div>
+              <div className="text-xl font-black text-slate-900 sm:text-2xl">
+                {step.title}
+              </div>
+              <div className="mt-3 text-sm leading-6 text-slate-600 sm:text-base sm:leading-7">
+                {step.body}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {(step.bullets || []).map((bullet: string, index: number) => (
+                <div
+                  key={`${step.id}-${index}`}
+                  className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700 sm:text-base"
+                >
+                  {bullet}
+                </div>
+              ))}
+            </div>
+
+            <label className="inline-flex items-center gap-3 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={dontShowAtStartup}
+                onChange={(e) => setDontShowAtStartup(e.target.checked)}
+              />
+              Don't show at startup
+            </label>
+          </div>
+        </div>
+
+        <div className="shrink-0 border-t border-slate-200 bg-white/95 px-4 py-4 backdrop-blur sm:px-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <ActionButton
+              variant="secondary"
+              className="w-full sm:w-auto"
+              onClick={() => setStepIndex((prev: number) => Math.max(0, prev - 1))}
+              disabled={isFirstStep}
+            >
+              Back
+            </ActionButton>
+
+            <div className="flex w-full gap-3 sm:w-auto sm:flex-wrap">
+              {!isLastStep ? (
+                <ActionButton
+                  className="w-full sm:w-auto"
+                  onClick={() => setStepIndex((prev: number) => prev + 1)}
+                >
+                  Next
+                </ActionButton>
+              ) : (
+                <ActionButton className="w-full sm:w-auto" onClick={onClose}>
+                  Finish Guide
+                </ActionButton>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ScreenTipModal({ tip, onClose, onDisable }: any) {
+  if (!tip) return null;
+
+  return (
+    <div className="dm-modal-backdrop fixed inset-0 z-[90] bg-black/45 flex items-end justify-center p-2 sm:items-center sm:p-4">
+      <div className="dm-modal-enter flex max-h-[calc(100dvh-1rem)] w-full max-w-xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]">
+        <div className="shrink-0 bg-slate-900 px-4 py-4 text-white sm:px-6">
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/70">
+            Quick Tip
+          </div>
+          <div className="mt-1 text-xl font-black sm:text-2xl">{tip.title}</div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6">
+          <div className="space-y-4">
+            <div className="text-sm leading-6 text-slate-700 sm:text-base sm:leading-7">
+              {tip.body}
+            </div>
+
+            {(tip.actions || []).length ? (
+              <div className="space-y-3">
+                {(tip.actions || []).map((action: string, index: number) => (
+                  <div
+                    key={`${tip.title}-${index}`}
+                    className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700 sm:text-base"
+                  >
+                    {action}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="shrink-0 border-t border-slate-200 bg-white/95 px-4 py-4 backdrop-blur sm:px-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <ActionButton className="w-full sm:w-auto" onClick={onClose}>
+              Got It
+            </ActionButton>
+            <ActionButton variant="secondary" className="w-full sm:w-auto" onClick={onDisable}>
+              Turn Off Tips
+            </ActionButton>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 function normalizeSnapshotValue(value: any): any {
   if (Array.isArray(value)) {
@@ -586,16 +813,31 @@ export default function App() {
   const [authUsers, setAuthUsers] = useState(() => loadStoredAuthUsers());
   const [activeAuthSessions, setActiveAuthSessions] = useState<any[]>([]);
   const [authUser, setAuthUser] = useState(() => loadStoredAuthSession());
+  const [showStartupGuide, setShowStartupGuide] = useState(() =>
+    getStoredBoolean("dm_show_startup_guide", true)
+  );
+  const [showTips, setShowTips] = useState(() =>
+    getStoredBoolean("dm_show_page_tips", true)
+  );
+  const [dismissedTips, setDismissedTips] = useState<Record<string, boolean>>(() =>
+    getStoredJson("dm_dismissed_page_tips", {})
+  );
+  const [guideVisible, setGuideVisible] = useState(false);
+  const [guideStepIndex, setGuideStepIndex] = useState(0);
+  const [guideDontShowAtStartup, setGuideDontShowAtStartup] = useState(false);
+  const [guideClearedThisSession, setGuideClearedThisSession] = useState(false);
+  const [tipVisible, setTipVisible] = useState(false);
   const [loginMessage, setLoginMessage] = useState("");
   const [apiBaseUrl, setApiBaseUrl] = useState(() =>
-    getStored("dm_api_base_url", "http://localhost:3001")
+    getStored("dm_api_base_url", "https://api.decalmonkey.biz")
   );
   const [mainEmail, setMainEmail] = useState(() =>
     getStored("dm_main_email", "info@decalmonkey.biz")
   );
-  const [deviceName, setDeviceName] = useState(() =>
-    getStored("dm_device_name", "web")
-  );
+  const [deviceName, setDeviceName] = useState(() => {
+    const storedDeviceName = getStored("dm_device_name", "");
+    return storedDeviceName === "web" ? "" : storedDeviceName;
+  });
   const [currentUser, setCurrentUser] = useState(() =>
     getStored(
       "dm_current_user",
@@ -694,6 +936,9 @@ export default function App() {
   const totalSteps = 7;
   const backPressAtRef = useRef(0);
   const isLeavingAppRef = useRef(false);
+  const detectedDeviceName = useMemo(() => getDetectedDeviceName(), []);
+  const resolvedDeviceName = String(deviceName || "").trim() || detectedDeviceName;
+  const currentScreenTip = authUser ? SCREEN_TIPS[screen] : null;
 
   const [form, setForm] = useState(() => {
     try {
@@ -713,6 +958,67 @@ export default function App() {
     if (!lastSavedFormSnapshot) return false;
     return currentFormSnapshot !== lastSavedFormSnapshot;
   }, [currentFormSnapshot, lastSavedFormSnapshot]);
+
+  useEffect(() => {
+    setStored("dm_show_startup_guide", showStartupGuide ? "true" : "false");
+  }, [showStartupGuide]);
+
+  useEffect(() => {
+    setStored("dm_show_page_tips", showTips ? "true" : "false");
+  }, [showTips]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("dm_dismissed_page_tips", JSON.stringify(dismissedTips || {}));
+    } catch {}
+  }, [dismissedTips]);
+
+  useEffect(() => {
+    if (!authUser) {
+      setGuideVisible(false);
+      setGuideStepIndex(0);
+      setGuideDontShowAtStartup(!showStartupGuide);
+      setGuideClearedThisSession(false);
+      setTipVisible(false);
+      return;
+    }
+
+    if (showStartupGuide) {
+      setGuideStepIndex(0);
+      setGuideDontShowAtStartup(false);
+      setGuideVisible(true);
+      setGuideClearedThisSession(false);
+      setTipVisible(false);
+      return;
+    }
+
+    setGuideVisible(false);
+    setGuideDontShowAtStartup(true);
+    setGuideClearedThisSession(true);
+  }, [authUser?.sessionToken]);
+
+  useEffect(() => {
+    if (!authUser || !guideClearedThisSession || guideVisible || !showTips) {
+      setTipVisible(false);
+      return;
+    }
+
+    if (!currentScreenTip || dismissedTips?.[screen]) {
+      setTipVisible(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => setTipVisible(true), 250);
+    return () => window.clearTimeout(timer);
+  }, [
+    authUser?.sessionToken,
+    currentScreenTip,
+    dismissedTips,
+    guideClearedThisSession,
+    guideVisible,
+    screen,
+    showTips,
+  ]);
 
   useEffect(() => {
     try {
@@ -967,9 +1273,9 @@ export default function App() {
   }, [authUser, screen]);
 
 
-  const syncSharedAuthUsers = async (sessionTokenOverride?: string) => {
+  const syncSharedAuthUsers = async () => {
     try {
-      const users = await fetchSharedAuthUsers(getApiBaseUrl(), sessionTokenOverride || authUser?.sessionToken);
+      const users = await fetchSharedAuthUsers(getApiBaseUrl());
       setAuthUsers(users);
       saveStoredAuthUsers(users);
       return users;
@@ -981,9 +1287,9 @@ export default function App() {
     }
   };
 
-  const syncActiveAuthSessions = async (sessionTokenOverride?: string) => {
+  const syncActiveAuthSessions = async () => {
     try {
-      const sessions = await fetchSharedAuthSessions(getApiBaseUrl(), sessionTokenOverride || authUser?.sessionToken);
+      const sessions = await fetchSharedAuthSessions(getApiBaseUrl());
       setActiveAuthSessions(sessions);
       return sessions;
     } catch (error: any) {
@@ -1023,7 +1329,7 @@ export default function App() {
       apiBaseUrl: getApiBaseUrl(),
       username,
       password,
-      deviceName,
+      deviceName: resolvedDeviceName,
     });
 
     if (!result.ok) {
@@ -1041,8 +1347,8 @@ export default function App() {
     setSettingsMessage("");
     setSubmitState({ loading: false, message: "" });
     setLoginMessage("");
-    await syncSharedAuthUsers(result.user.sessionToken);
-    await syncActiveAuthSessions(result.user.sessionToken);
+    await syncSharedAuthUsers();
+    await syncActiveAuthSessions();
     setScreenState(getDefaultScreenForRole(result.user.role));
     return true;
   };
@@ -1060,7 +1366,7 @@ export default function App() {
 
   const handleLogoutAllDevices = async () => {
     try {
-      await logoutAllSharedAuthUsers(getApiBaseUrl(), authUser?.sessionToken);
+      await logoutAllSharedAuthUsers(getApiBaseUrl());
       setActiveAuthSessions([]);
       clearStoredAuthSession();
       setAuthUser(null);
@@ -1083,7 +1389,6 @@ export default function App() {
       await logoutMySharedAuthDevices({
         apiBaseUrl: getApiBaseUrl(),
         userId: authUser.id,
-        sessionToken: authUser.sessionToken,
       });
 
       setActiveAuthSessions([]);
@@ -1097,6 +1402,76 @@ export default function App() {
         error?.message || "Could not log out your devices."
       );
     }
+  };
+
+  const handleChangePassword = async (currentPassword: string, newPassword: string) => {
+    try {
+      if (!authUser?.sessionToken) {
+        throw new Error("You need to log in again before changing your password.");
+      }
+
+      const result = await changeSharedAuthPassword({
+        apiBaseUrl: getApiBaseUrl(),
+        sessionToken: authUser.sessionToken,
+        currentPassword,
+        newPassword,
+      });
+
+      const updatedUser = {
+        ...authUser,
+        ...result.user,
+        password: newPassword,
+      };
+
+      setAuthUser(updatedUser);
+      saveStoredAuthSession(updatedUser);
+      setAuthUsers((prev: any[]) =>
+        (Array.isArray(prev) ? prev : []).map((user: any) =>
+          user.id === updatedUser.id ? { ...user, password: newPassword } : user
+        )
+      );
+      setSettingsMessage(result.message);
+      await syncSharedAuthUsers();
+      await syncActiveAuthSessions();
+      return result;
+    } catch (error: any) {
+      setSettingsMessage(error?.message || "Could not change password.");
+      throw error;
+    }
+  };
+
+  const openQuickGuide = () => {
+    setGuideDontShowAtStartup(!showStartupGuide);
+    setGuideStepIndex(0);
+    setGuideVisible(true);
+    setTipVisible(false);
+  };
+
+  const closeQuickGuide = () => {
+    const nextShowStartupGuide = !guideDontShowAtStartup;
+    setShowStartupGuide(nextShowStartupGuide);
+    setGuideVisible(false);
+    setGuideClearedThisSession(true);
+  };
+
+  const dismissCurrentTip = () => {
+    if (screen) {
+      setDismissedTips((prev) => ({
+        ...(prev || {}),
+        [screen]: true,
+      }));
+    }
+    setTipVisible(false);
+  };
+
+  const disableTips = () => {
+    setShowTips(false);
+    setTipVisible(false);
+  };
+
+  const resetDismissedTips = () => {
+    setDismissedTips({});
+    setTipVisible(false);
   };
 
   const addAuthUser = () => {
@@ -1128,7 +1503,7 @@ export default function App() {
           (user: any) => user.username && user.password && user.displayName && user.role
         );
 
-      const savedUsers = await saveSharedAuthUsers(sanitizedUsers, getApiBaseUrl(), authUser?.sessionToken);
+      const savedUsers = await saveSharedAuthUsers(sanitizedUsers, getApiBaseUrl());
       setAuthUsers(savedUsers);
       saveStoredAuthUsers(savedUsers);
       setSettingsMessage(
@@ -1146,7 +1521,7 @@ export default function App() {
 
   const resetAuthUsers = async () => {
     try {
-      const defaults = await resetSharedAuthUsers(getApiBaseUrl(), authUser?.sessionToken);
+      const defaults = await resetSharedAuthUsers(getApiBaseUrl());
       setAuthUsers(defaults);
       saveStoredAuthUsers(defaults);
       setSettingsMessage(
@@ -1692,7 +2067,7 @@ export default function App() {
   const saveSettings = () => {
     setStored("dm_api_base_url", apiBaseUrl);
     setStored("dm_main_email", mainEmail);
-    setStored("dm_device_name", deviceName);
+    setStored("dm_device_name", String(deviceName || "").trim());
     setStored("dm_current_user", currentUser);
 
     setForm((prev: any) => ({
@@ -1700,7 +2075,7 @@ export default function App() {
       customerOwner: currentUser,
     }));
 
-    setSettingsMessage(`Settings saved for ${currentUser} on ${deviceName}.`);
+    setSettingsMessage(`Settings saved for ${currentUser} on ${resolvedDeviceName}.`);
   };
 
   const clearInstallerCache = () => {
@@ -2305,7 +2680,7 @@ export default function App() {
             printavoQuoteId: editingSubmittedOrder.printavoQuoteId || undefined,
             repEmail: mainEmail,
             repName: currentUser,
-            deviceName,
+            deviceName: resolvedDeviceName,
             isModification: true,
             modifiedOrderId: editingSubmittedOrder.id,
             modificationNote: "Offsite measurement job details updated from iPad.",
@@ -2446,7 +2821,7 @@ export default function App() {
           updatedExistingOrder.nickname ||
           updatedExistingOrder.company ||
           updatedExistingOrder.customer,
-        by: deviceName,
+        by: resolvedDeviceName,
         status: "Pending Sync",
         modificationNote: "Existing order updated from iPad.",
         __source: "submission",
@@ -2471,7 +2846,7 @@ export default function App() {
             printavoQuoteId: editingSubmittedOrder.printavoQuoteId || undefined,
             repEmail: mainEmail,
             repName: currentUser,
-            deviceName,
+            deviceName: resolvedDeviceName,
             isModification: true,
             modifiedOrderId: editingSubmittedOrder.id,
             modificationNote: "Existing order updated from iPad.",
@@ -2572,7 +2947,7 @@ export default function App() {
         photoEntries: (form.photoEntries || []).map((entry: any) => ({
           ...entry,
         })),
-        by: deviceName,
+        by: resolvedDeviceName,
         status: "Pending Sync",
         wasModified: true,
         modificationNote: "Order modified and resubmitted from iPad.",
@@ -2601,7 +2976,7 @@ export default function App() {
             printavoQuoteId: editingSubmittedOrder.printavoQuoteId || undefined,
             repEmail: mainEmail,
             repName: currentUser,
-            deviceName,
+            deviceName: resolvedDeviceName,
             isModification: true,
             modifiedOrderId: editingSubmittedOrder.id,
             modificationNote: "Order modified and resubmitted from iPad.",
@@ -2687,7 +3062,7 @@ export default function App() {
       nickname,
       firstName: form.firstName,
       lastName: form.lastName,
-      by: deviceName,
+      by: resolvedDeviceName,
       status: "Pending Sync",
       customerOwner: form.customerOwner,
       company: form.company,
@@ -2739,7 +3114,7 @@ export default function App() {
           ...preparedForm,
           repEmail: mainEmail,
           repName: currentUser,
-          deviceName,
+          deviceName: resolvedDeviceName,
         }),
       });
 
@@ -2864,7 +3239,7 @@ export default function App() {
           productionFiles: order.productionFiles || [],
           repEmail: mainEmail,
           repName: currentUser,
-          deviceName,
+          deviceName: resolvedDeviceName,
           isModification: !!order.wasModified,
           modifiedOrderId: order.wasModified ? order.id : undefined,
           modificationNote: order.wasModified
@@ -3014,7 +3389,7 @@ export default function App() {
           printavoQuoteId: editingSubmittedOrder.printavoQuoteId || undefined,
           repEmail: mainEmail,
           repName: currentUser,
-          deviceName,
+          deviceName: resolvedDeviceName,
           isModification: true,
           modifiedOrderId: editingSubmittedOrder.id,
           modificationNote: "Offsite measurement updated from iPad.",
@@ -3123,7 +3498,7 @@ export default function App() {
         city: syncedMeasurementJob.city || "",
         state: syncedMeasurementJob.state || "",
         zip: syncedMeasurementJob.zip || "",
-        by: deviceName,
+        by: resolvedDeviceName,
         status: "Offsite Measurement Complete",
         measurementCompleted: true,
         modifiedAt,
@@ -3167,24 +3542,24 @@ export default function App() {
     }
   };
 
+  let screenContent = null;
+
   if (!authUser) {
-    return (
+    screenContent = (
       <LoginScreen
         onLogin={handleLogin}
         loginMessage={loginMessage}
-        deviceName={deviceName}
+        deviceName={resolvedDeviceName}
       />
     );
-  }
-
-  if (screen === "home") {
-    return (
+  } else if (screen === "home") {
+    screenContent = (
       <HomeScreen
         setScreen={setScreen}
         setSelectedInstall={setSelectedInstall}
         draftStatus={draftStatus}
         currentUser={currentUser}
-        deviceName={deviceName}
+        deviceName={resolvedDeviceName}
         submitState={submitState}
         savedDrafts={savedDrafts}
         resumeDraft={resumeDraft}
@@ -3193,10 +3568,8 @@ export default function App() {
         startFreshOrder={startFreshOrder}
       />
     );
-  }
-
-  if (screen === "existing") {
-    return (
+  } else if (screen === "existing") {
+    screenContent = (
       <ExistingOrdersScreen
         searchTerm={measurementSearchTerm}
         setSearchTerm={setMeasurementSearchTerm}
@@ -3211,10 +3584,8 @@ export default function App() {
         measurementLastRefresh={measurementLastRefresh}
       />
     );
-  }
-
-  if (screen === "measurement" && editingSubmittedOrder) {
-    return (
+  } else if (screen === "measurement" && editingSubmittedOrder) {
+    screenContent = (
       <MeasurementScreen
         form={form}
         updateField={updateField}
@@ -3228,10 +3599,8 @@ export default function App() {
         selectedMeasurement={editingSubmittedOrder}
       />
     );
-  }
-
-  if (screen === "history") {
-    return (
+  } else if (screen === "history") {
+    screenContent = (
       <HistoryScreen
         submittedOrders={submittedOrders}
         installHistorySnapshots={installHistorySnapshots}
@@ -3245,10 +3614,8 @@ export default function App() {
         submitState={submitState}
       />
     );
-  }
-
-  if (screen === "submission-detail" && selectedOrder) {
-    return (
+  } else if (screen === "submission-detail" && selectedOrder) {
+    screenContent = (
       <SubmissionDetailScreen
         order={selectedOrder}
         setScreen={setScreen}
@@ -3257,10 +3624,8 @@ export default function App() {
         openSubmittedOrderForEdit={openSubmittedOrderForEdit}
       />
     );
-  }
-
-  if (screen === "installer") {
-    return (
+  } else if (screen === "installer") {
+    screenContent = (
       <InstallerScreen
         installs={installJobs}
         setSelectedInstall={setSelectedInstall}
@@ -3271,10 +3636,8 @@ export default function App() {
         installerLastRefresh={installerLastRefresh}
       />
     );
-  }
-
-  if (screen === "installer-detail" && selectedInstall) {
-    return (
+  } else if (screen === "installer-detail" && selectedInstall) {
+    screenContent = (
       <InstallerDetailScreen
         selectedInstall={selectedInstall}
         setSelectedInstall={setSelectedInstall}
@@ -3282,10 +3645,8 @@ export default function App() {
         setLastCompletedInstall={setLastCompletedInstall}
       />
     );
-  }
-
-  if (screen === "installer-completion" && selectedInstall) {
-    return (
+  } else if (screen === "installer-completion" && selectedInstall) {
+    screenContent = (
       <InstallerCompletionScreen
         selectedInstall={selectedInstall}
         setSelectedInstall={setSelectedInstall}
@@ -3312,25 +3673,22 @@ export default function App() {
         setScreen={setScreen}
       />
     );
-  }
-
-  if (screen === "installer-complete-success") {
-    return (
+  } else if (screen === "installer-complete-success") {
+    screenContent = (
       <InstallerCompleteSuccessScreen
         lastCompletedInstall={lastCompletedInstall}
         setScreen={setScreen}
       />
     );
-  }
-
-  if (screen === "settings") {
-    return (
+  } else if (screen === "settings") {
+    screenContent = (
       <SettingsScreen
         mainEmail={mainEmail}
         setMainEmail={setMainEmail}
         apiBaseUrl={apiBaseUrl}
         setApiBaseUrl={setApiBaseUrl}
         deviceName={deviceName}
+        resolvedDeviceName={resolvedDeviceName}
         setDeviceName={setDeviceName}
         currentUser={currentUser}
         setCurrentUser={setCurrentUser}
@@ -3342,6 +3700,7 @@ export default function App() {
         saveAuthUsersNow={saveAuthUsersNow}
         resetAuthUsers={resetAuthUsers}
         handleLogout={handleLogout}
+        handleChangePassword={handleChangePassword}
         syncSharedAuthUsers={syncSharedAuthUsers}
         activeAuthSessions={activeAuthSessions}
         syncActiveAuthSessions={syncActiveAuthSessions}
@@ -3358,47 +3717,71 @@ export default function App() {
         installerCacheCount={installJobs.length}
         measurementCacheCount={measurementJobs.length}
         historySnapshotCount={installHistorySnapshots.length}
+        showStartupGuide={showStartupGuide}
+        setShowStartupGuide={setShowStartupGuide}
+        showTips={showTips}
+        setShowTips={setShowTips}
+        openQuickGuide={openQuickGuide}
+        resetDismissedTips={resetDismissedTips}
       />
     );
-  }
-
-  if (screen === "app-guide") {
-    return <AppGuideScreen setScreen={setScreen} />;
-  }
-
-  if (screen === "inquiry") {
-    return (
+  } else if (screen === "app-guide") {
+    screenContent = <AppGuideScreen setScreen={setScreen} />;
+  } else if (screen === "inquiry") {
+    screenContent = (
       <InquiryScreen
         setScreen={setScreen}
         apiBaseUrl={apiBaseUrl}
         currentUser={currentUser}
-        deviceName={deviceName}
+        deviceName={resolvedDeviceName}
+      />
+    );
+  } else {
+    screenContent = (
+      <WizardScreen
+        steps={steps}
+        step={step}
+        totalSteps={totalSteps}
+        form={form}
+        updateField={updateField}
+        addPhotoEntry={addPhotoEntry}
+        updatePhotoEntry={updatePhotoEntry}
+        movePhotoEntry={movePhotoEntry}
+        deletePhotoEntry={deletePhotoEntry}
+        saveDraftNow={saveDraftNow}
+        setStep={setStep}
+        setScreen={setScreen}
+        submitOrder={submitOrder}
+        submitState={submitState}
+        editingSubmittedOrder={editingSubmittedOrder}
+        exitWizardToHome={exitWizardToHome}
+        addProductionFiles={addProductionFiles}
+        removeProductionFile={removeProductionFile}
+        updateLineItem={updateLineItem}
+        hasUnsavedChanges={hasUnsavedChanges}
       />
     );
   }
-  
+
   return (
-    <WizardScreen
-      steps={steps}
-      step={step}
-      totalSteps={totalSteps}
-      form={form}
-      updateField={updateField}
-      addPhotoEntry={addPhotoEntry}
-      updatePhotoEntry={updatePhotoEntry}
-      movePhotoEntry={movePhotoEntry}
-      deletePhotoEntry={deletePhotoEntry}
-      saveDraftNow={saveDraftNow}
-      setStep={setStep}
-      setScreen={setScreen}
-      submitOrder={submitOrder}
-      submitState={submitState}
-      editingSubmittedOrder={editingSubmittedOrder}
-      exitWizardToHome={exitWizardToHome}
-      addProductionFiles={addProductionFiles}
-      removeProductionFile={removeProductionFile}
-      updateLineItem={updateLineItem}
-      hasUnsavedChanges={hasUnsavedChanges}
-    />
+    <>
+      {screenContent}
+      {authUser && guideVisible ? (
+        <QuickGuideModal
+          stepIndex={guideStepIndex}
+          setStepIndex={setGuideStepIndex}
+          dontShowAtStartup={guideDontShowAtStartup}
+          setDontShowAtStartup={setGuideDontShowAtStartup}
+          onClose={closeQuickGuide}
+        />
+      ) : null}
+      {authUser && tipVisible ? (
+        <ScreenTipModal
+          tip={currentScreenTip}
+          onClose={dismissCurrentTip}
+          onDisable={disableTips}
+        />
+      ) : null}
+    </>
   );
 }

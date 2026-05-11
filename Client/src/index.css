@@ -46,3 +46,48 @@ select:disabled {
   color: #64748b;
   background-color: #f1f5f9;
 }
+
+@keyframes dmModalEnter {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes dmModalBackdropEnter {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.dm-modal-backdrop {
+  animation: dmModalBackdropEnter 180ms ease-out;
+}
+
+.dm-modal-enter {
+  animation: dmModalEnter 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: center bottom;
+  will-change: transform, opacity;
+}
+
+@media (min-width: 640px) {
+  .dm-modal-enter {
+    transform-origin: center center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dm-modal-backdrop,
+  .dm-modal-enter {
+    animation: none;
+  }
+}
